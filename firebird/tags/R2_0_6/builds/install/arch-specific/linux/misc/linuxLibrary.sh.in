@@ -1,0 +1,167 @@
+#!/bin/sh
+
+RunUser=firebird
+export RunUser
+RunGroup=firebird
+export RunGroup
+PidDir=/var/run/firebird
+export PidDir
+
+#------------------------------------------------------------------------
+#  Add new user and group
+
+TryAddGroup() {
+
+	AdditionalParameter=$1
+	testStr=`grep firebird /etc/group`
+	
+    if [ -z "$testStr" ]
+      then
+        groupadd $AdditionalParameter firebird
+    fi
+	
+}
+
+
+TryAddUser() {
+
+	AdditionalParameter=$1
+	testStr=`grep firebird /etc/passwd`
+	
+    if [ -z "$testStr" ]
+      then
+        useradd $AdditionalParameter -d $FBRootDir -s /bin/false \
+            -c "Firebird Database Owner" -g firebird firebird 
+    fi
+
+}
+
+
+addFirebirdUser() {
+
+	TryAddGroup "-g 84 -r" >/dev/null 2>&1
+	TryAddGroup "-g 84" >/dev/null 2>&1
+	TryAddGroup "-r" >/dev/null 2>&1
+	TryAddGroup " "
+	
+	TryAddUser "-u 84 -r -M" >/dev/null 2>&1
+	TryAddUser "-u 84 -M" >/dev/null 2>&1
+	TryAddUser "-r -M" >/dev/null 2>&1
+	TryAddUser "-M"
+	TryAddUser "-u 84 -r" >/dev/null 2>&1
+	TryAddUser "-u 84" >/dev/null 2>&1
+	TryAddUser "-r" >/dev/null 2>&1
+	TryAddUser " "
+
+}
+
+
+#------------------------------------------------------------------------
+#  Detect Distribution.
+#	AP: very beautiful, but unused. Let's keep alive for a while. (2005)
+
+detectDistro() {
+
+    # it's not provided...
+    if [ -z "$linuxDistro"  ]
+    then
+	if [ -e /etc/SuSE-release  ]
+	then
+	    # SuSE
+	    linuxDistro="SuSE"
+	elif [ -e /etc/mandrake-release ]
+	then
+	    # Mandrake
+	    linuxDistro="MDK"
+	elif [ -e /etc/debian_version ]
+	then
+	    # Debian
+	    linuxDistro="Debian"
+	elif [ -e /etc/gentoo-release ]
+	then
+	    # Debian
+	    linuxDistro="Gentoo"
+	elif [ -e /etc/rc.d/init.d/functions ]
+	then
+	    # very likely Red Hat
+	    linuxDistro="RH"
+	elif [ -d /etc/rc.d/init.d ]
+	then
+	    # generic Red Hat
+	    linuxDistro="G-RH"
+	elif [ -d /etc/init.d ]
+	then
+	    # generic SuSE
+	    linuxDistro="G-SuSE"
+	fi
+    fi
+}
+
+
+#------------------------------------------------------------------------
+#  print location of init script
+
+getInitScriptLocation() {
+    if [ -f /etc/rc.d/init.d/firebird ]
+	then
+		echo -n /etc/rc.d/init.d/firebird
+    elif [ -f /etc/rc.d/rc.firebird ]
+	then
+		echo -n /etc/rc.d/rc.firebird
+    elif [ -f /etc/init.d/firebird ]
+	then
+		echo -n /etc/init.d/firebird
+    fi
+}
+
+
+#------------------------------------------------------------------------
+#  stop super server if it is running
+
+stopSuperServerIfRunning() {
+    checkString=`ps -efww| egrep "\b(fbserver|fbguard)\b" |grep -v grep`
+
+    if [ ! -z "$checkString" ]
+    then
+		init_d=`getInitScriptLocation`
+
+        if [ -x "$init_d" ]
+		then
+       	    $init_d stop
+			sleep 1
+		fi
+    fi
+}
+
+#------------------------------------------------------------------------
+#  Generate new sysdba password - this routine is used only in the 
+#  rpm file not in the install script.
+
+generateNewDBAPassword() {
+    # openssl generates random data.
+	openssl </dev/null >/dev/null 2&>/dev/null
+    if [ $? -eq 0 ]
+    then
+        # We generate 20 random chars, strip any '/''s and get the first 8
+        NewPasswd=`openssl rand -base64 20 | tr -d '/' | cut -c1-8`
+    fi
+
+    # mkpasswd is a bit of a hassle, but check to see if it's there
+    if [ -z "$NewPasswd" ]
+    then
+        if [ -f /usr/bin/mkpasswd ]
+        then
+            NewPasswd=`/usr/bin/mkpasswd -l 8`
+        fi
+    fi
+
+	# On some systems the mkpasswd program doesn't appear and on others
+	# there is another mkpasswd which does a different operation.  So if
+	# the specific one isn't available then keep the original password.
+    if [ -z "$NewPasswd" ]
+    then
+        NewPasswd="masterkey"
+    fi
+
+    writeNewPassword $NewPasswd
+}
