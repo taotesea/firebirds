@@ -7968,7 +7968,6 @@ non_reserved_word
 	| TANH
 	| TEMPORARY
 	| TRUNC
-	| WEEK
 	| AUTONOMOUS			// added in FB 2.5
 	| CHAR_TO_UUID
 	| FIRSTNAME

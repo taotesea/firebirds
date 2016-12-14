@@ -467,7 +467,7 @@ static const TOK tokens[] =
 	{TOK_VARYING, "VARYING", false},
 	{TOK_VIEW, "VIEW", false},
 	{TOK_WAIT, "WAIT", true},
-	{TOK_WEEK, "WEEK", true},
+	{TOK_WEEK, "WEEK", false},
 	{TOK_WEEKDAY, "WEEKDAY", true},
 	{TOK_WHEN, "WHEN", false},
 	{TOK_WHERE, "WHERE", false},
