@@ -8050,7 +8050,7 @@ non_reserved_word
 //	| VARIABLE
 //	| VIEW
 	| WAIT
-//	| WEEK
+	| WEEK
 //	| WHILE
 	| WORK
 	| WRITE				// end of old keywords, that were reserved pre-Firebird.2.5
