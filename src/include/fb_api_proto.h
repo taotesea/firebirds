@@ -439,6 +439,11 @@ typedef ISC_STATUS API_ROUTINE prototype_fb_cancel_operation(ISC_STATUS *,
 											isc_db_handle *,
 											USHORT);
 
+typedef ISC_STATUS API_ROUTINE prototype_fb_dsql_set_timeout(ISC_STATUS*, 
+										isc_stmt_handle*, 
+										ULONG);
+
+
 struct FirebirdApiPointers
 {
 	prototype_isc_attach_database *isc_attach_database;
@@ -519,6 +524,7 @@ struct FirebirdApiPointers
 	prototype_isc_service_query *isc_service_query;
 	prototype_isc_service_start *isc_service_start;
 	prototype_fb_cancel_operation *fb_cancel_operation;
+	prototype_fb_dsql_set_timeout* fb_dsql_set_timeout;
 };
 
 #endif

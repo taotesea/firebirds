@@ -1716,10 +1716,8 @@ static bool accept_connection(rem_port* port, P_CNCT* connect, PACKET* send)
 		protocol < end; protocol++)
 	{
 		if ((protocol->p_cnct_version == PROTOCOL_VERSION10 ||
-			 protocol->p_cnct_version == PROTOCOL_VERSION11 ||
-			 protocol->p_cnct_version == PROTOCOL_VERSION12 ||
-			 protocol->p_cnct_version == PROTOCOL_VERSION13 ||
-			 protocol->p_cnct_version == PROTOCOL_VERSION14) &&
+			 protocol->p_cnct_version >= PROTOCOL_VERSION11 &&
+			 protocol->p_cnct_version <= PROTOCOL_VERSION15) &&
 			 (protocol->p_cnct_architecture == arch_generic ||
 			  protocol->p_cnct_architecture == ARCHITECTURE) &&
 			protocol->p_cnct_weight >= weight)
@@ -3288,6 +3286,9 @@ ISC_STATUS rem_port::execute_statement(P_OP op, P_SQLDATA* sqldata, PACKET* send
 	ITransaction* newTra = tra;
 
 	unsigned flags = statement->rsr_iface->getFlags(&status_vector);
+	check(&status_vector);
+
+	statement->rsr_iface->setTimeout(&status_vector, sqldata->p_sqldata_timeout);
 	check(&status_vector);
 
 	if ((flags & IStatement::FLAG_HAS_CURSOR) && (out_msg_length == 0))

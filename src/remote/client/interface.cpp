@@ -322,6 +322,28 @@ public:
 	void free(CheckStatusWrapper* status);
 	unsigned getFlags(CheckStatusWrapper* status);
 
+	unsigned int getTimeout(CheckStatusWrapper* status)
+	{
+		if (statement->rsr_rdb->rdb_port->port_protocol < PROTOCOL_VERSION15)
+		{
+			status->setErrors(Arg::Gds(isc_wish_list).value());
+			return 0;
+		}
+
+		return statement->rsr_timeout;
+	}
+
+	void setTimeout(CheckStatusWrapper* status, unsigned int timeOut)
+	{
+		if (timeOut && statement->rsr_rdb->rdb_port->port_protocol < PROTOCOL_VERSION15)
+		{
+			status->setErrors(Arg::Gds(isc_wish_list).value());
+			return;
+		}
+
+		statement->rsr_timeout = timeOut;
+	}
+
 public:
 	Statement(Rsr* handle, Attachment* a, unsigned aDialect)
 		: metadata(getPool(), this, NULL),
@@ -509,6 +531,11 @@ public:
 	void detach(CheckStatusWrapper* status);
 	void dropDatabase(CheckStatusWrapper* status);
 
+	unsigned int getIdleTimeout(CheckStatusWrapper* status);
+	void setIdleTimeout(CheckStatusWrapper* status, unsigned int timeOut);
+	unsigned int getStatementTimeout(CheckStatusWrapper* status);
+	void setStatementTimeout(CheckStatusWrapper* status, unsigned int timeOut);
+
 public:
 	Attachment(Rdb* handle, const PathName& path)
 		: rdb(handle), dbPath(getPool(), path)
@@ -530,6 +557,7 @@ public:
 
 private:
 	void freeClientData(CheckStatusWrapper* status, bool force = false);
+	SLONG getSingleInfo(CheckStatusWrapper* status, UCHAR infoItem);
 
 	Rdb* rdb;
 	const PathName dbPath;
@@ -1729,6 +1757,63 @@ void Attachment::dropDatabase(CheckStatusWrapper* status)
 }
 
 
+SLONG Attachment::getSingleInfo(CheckStatusWrapper* status, UCHAR infoItem)
+{
+	UCHAR buff[16];
+
+	getInfo(status, 1, &infoItem, sizeof(buff), buff);
+	if (status->getState() & IStatus::STATE_ERRORS)
+		return 0;
+
+	const UCHAR* p = buff;
+	const UCHAR* const end = buff + sizeof(buff);
+	UCHAR item;
+	while ((item = *p++) != isc_info_end && p < end - 1)
+	{
+		const SLONG length = gds__vax_integer(p, 2);
+		p += 2;
+
+		if (item == infoItem)
+			return gds__vax_integer(p, (SSHORT)length);
+
+		fb_assert(false);
+
+		p += length;
+	}
+	return 0;
+}
+
+
+unsigned int Attachment::getIdleTimeout(CheckStatusWrapper* status)
+{
+	return getSingleInfo(status, fb_info_ses_idle_timeout_att);
+}
+
+
+void Attachment::setIdleTimeout(CheckStatusWrapper* status, unsigned int timeOut)
+{
+	string stmt;
+	stmt.printf("SET SESSION IDLE TIMEOUT %lu", timeOut);
+
+	execute(status, NULL, stmt.length(), stmt.c_str(), 1, NULL, NULL, NULL, NULL);
+}
+
+
+unsigned int Attachment::getStatementTimeout(CheckStatusWrapper* status)
+{
+	return getSingleInfo(status, fb_info_statement_timeout_att);
+}
+
+
+void Attachment::setStatementTimeout(CheckStatusWrapper* status, unsigned int timeOut)
+{
+	string stmt;
+	stmt.printf("SET STATEMENT TIMEOUT %lu", timeOut);
+
+	execute(status, NULL, stmt.length(), stmt.c_str(), 1, NULL, NULL, NULL, NULL);
+}
+
+
 Firebird::ITransaction* Statement::execute(CheckStatusWrapper* status, Firebird::ITransaction* apiTra,
 	IMessageMetadata* inMetadata, void* inBuffer, IMessageMetadata* outMetadata, void* outBuffer)
 {
@@ -1856,6 +1941,7 @@ Firebird::ITransaction* Statement::execute(CheckStatusWrapper* status, Firebird:
 		sqldata->p_sqldata_out_blr.cstr_length = out_blr_length;
 		sqldata->p_sqldata_out_blr.cstr_address = const_cast<UCHAR*>(out_blr);
 		sqldata->p_sqldata_out_message_number = 0;	// out_msg_type
+		sqldata->p_sqldata_timeout = statement->rsr_timeout;
 
 		send_packet(port, packet);
 
@@ -2020,6 +2106,7 @@ ResultSet* Statement::openCursor(CheckStatusWrapper* status, Firebird::ITransact
 		sqldata->p_sqldata_out_blr.cstr_length = out_blr_length;
 		sqldata->p_sqldata_out_blr.cstr_address = const_cast<UCHAR*>(out_blr);
 		sqldata->p_sqldata_out_message_number = 0;	// out_msg_type
+		sqldata->p_sqldata_timeout = statement->rsr_timeout;
 
 		send_partial_packet(port, packet);
 		defer_packet(port, packet, true);

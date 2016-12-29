@@ -142,6 +142,8 @@ public:
 		KEY_WIRE_COMPRESSION,
 		KEY_MAX_IDENTIFIER_BYTE_LENGTH,
 		KEY_MAX_IDENTIFIER_CHAR_LENGTH,
+		KEY_STMT_TIMEOUT,
+		KEY_CONN_IDLE_TIMEOUT,
 		MAX_CONFIG_KEY		// keep it last
 	};
 
@@ -349,6 +351,11 @@ public:
 	int getMaxIdentifierByteLength() const;
 
 	int getMaxIdentifierCharLength() const;
+
+	// set in seconds
+	unsigned int getStatementTimeout() const;
+	// set in minutes
+	unsigned int getConnIdleTimeout() const;
 };
 
 // Implementation of interface to access master configuration file

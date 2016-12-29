@@ -194,7 +194,9 @@ const Config::ConfigEntry Config::entries[MAX_CONFIG_KEY] =
 	{TYPE_BOOLEAN,		"IPv6V6Only",				(ConfigValue) false},
 	{TYPE_BOOLEAN,		"WireCompression",			(ConfigValue) false},
 	{TYPE_INTEGER,		"MaxIdentifierByteLength",	(ConfigValue) -1},
-	{TYPE_INTEGER,		"MaxIdentifierCharLength",	(ConfigValue) -1}
+	{TYPE_INTEGER,		"MaxIdentifierCharLength",	(ConfigValue) -1},
+	{TYPE_INTEGER,		"StatementTimeout",			(ConfigValue) 0},
+	{TYPE_INTEGER,		"ConnectionIdleTimeout",	(ConfigValue) 0}
 };
 
 /******************************************************************************
@@ -809,4 +811,14 @@ int Config::getMaxIdentifierCharLength() const
 		rc = METADATA_IDENTIFIER_CHAR_LEN;
 
 	return MIN(MAX(rc, 1), METADATA_IDENTIFIER_CHAR_LEN);
+}
+
+unsigned int Config::getStatementTimeout() const
+{
+	return get<unsigned int>(KEY_STMT_TIMEOUT);
+}
+
+unsigned int Config::getConnIdleTimeout() const
+{
+	return get<unsigned int>(KEY_CONN_IDLE_TIMEOUT);
 }

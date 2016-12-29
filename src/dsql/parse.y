@@ -612,6 +612,8 @@ using namespace Firebird;
 %token <metaNamePtr> TIES
 %token <metaNamePtr> UNBOUNDED
 %token <metaNamePtr> WINDOW
+%token <metaNamePtr> IDLE
+%token <metaNamePtr> SESSION
 
 // precedence declarations for expression evaluation
 
@@ -752,6 +754,7 @@ using namespace Firebird;
 	Jrd::MappingNode* mappingNode;
 	Jrd::MappingNode::OP mappingOp;
 	Jrd::SetRoleNode* setRoleNode;
+	Jrd::SetSessionNode* setSessionNode;
 	Jrd::CreateAlterRoleNode* createAlterRoleNode;
 }
 
@@ -771,6 +774,7 @@ statement
 	: dml_statement		{ $$ = newNode<DsqlDmlRequest>($1); }
 	| ddl_statement		{ $$ = newNode<DsqlDdlRequest>($1); }
 	| tra_statement		{ $$ = newNode<DsqlTransactionRequest>($1); }
+	| session_statement	{ $$ = newNode<SetSessionRequest>($1); }
 	;
 
 %type <stmtNode> dml_statement
@@ -4930,6 +4934,31 @@ set_role
 		{ $$ = newNode<SetRoleNode>(); }
 	;
 
+%type <setSessionNode> session_statement
+session_statement
+	: SET SESSION IDLE TIMEOUT long_integer timepart_sesion_idle_tout
+		{ $$ = newNode<SetSessionNode>(SetSessionNode::TYPE_IDLE_TIMEOUT, $5, $6); }
+	| SET STATEMENT TIMEOUT long_integer timepart_ses_stmt_tout
+		{ $$ = newNode<SetSessionNode>(SetSessionNode::TYPE_STMT_TIMEOUT, $4, $5); }
+	;
+
+%type <blrOp> timepart_sesion_idle_tout
+timepart_sesion_idle_tout
+	:				{ $$ = blr_extract_minute; }
+	| HOUR			{ $$ = blr_extract_hour; }
+	| MINUTE		{ $$ = blr_extract_minute; }
+	| SECOND		{ $$ = blr_extract_second; }
+	;
+
+%type <blrOp> timepart_ses_stmt_tout
+timepart_ses_stmt_tout
+	:				{ $$ = blr_extract_second; }
+	| HOUR			{ $$ = blr_extract_hour; }
+	| MINUTE		{ $$ = blr_extract_minute; }
+	| SECOND		{ $$ = blr_extract_second; }
+	| MILLISECOND	{ $$ = blr_extract_millisecond; }
+	;
+
 %type tran_option_list_opt(<setTransactionNode>)
 tran_option_list_opt($setTransactionNode)
 	: // nothing
@@ -8141,6 +8170,8 @@ non_reserved_word
 	| SQL
 	| SYSTEM
 	| TIES
+	| SESSION
+	| IDLE
 	;
 
 %%

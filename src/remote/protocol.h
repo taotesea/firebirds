@@ -82,6 +82,11 @@ const USHORT PROTOCOL_VERSION13	= (FB_PROTOCOL_FLAG | 13);
 
 const USHORT PROTOCOL_VERSION14	= (FB_PROTOCOL_FLAG | 14);
 
+// Protocol 15:
+//	- statement timeouts
+
+const USHORT PROTOCOL_VERSION15 = (FB_PROTOCOL_FLAG | 15);
+
 // Architecture types
 
 enum P_ARCH
@@ -572,6 +577,7 @@ typedef struct p_sqldata
     CSTRING	p_sqldata_out_blr;			// blr describing output message
     USHORT	p_sqldata_out_message_number;
     ULONG	p_sqldata_status;			// final eof status
+	ULONG	p_sqldata_timeout;			// statement timeout
 } P_SQLDATA;
 
 typedef struct p_sqlfree
