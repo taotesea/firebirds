@@ -440,6 +440,7 @@ interface Statement : ReferenceCounted
 	void free(Status status);
 	uint getFlags(Status status);
 
+version:	// 3.0 => 4.0
 	// Statement execution timeout, milliseconds
 	uint getTimeout(Status status);
 	void setTimeout(Status status, uint timeOut);
@@ -521,6 +522,7 @@ interface Attachment : ReferenceCounted
 	void detach(Status status);
 	void dropDatabase(Status status);
 
+version:	// 3.0 => 4.0
 	// Idle attachment timeout, seconds
 	uint getIdleTimeout(Status status);
 	void setIdleTimeout(Status status, uint timeOut);

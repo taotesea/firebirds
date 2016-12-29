@@ -1571,7 +1571,7 @@ namespace Firebird
 		}
 
 	public:
-		static const unsigned VERSION = 3;
+		static const unsigned VERSION = 4;
 
 		static const unsigned PREPARE_PREFETCH_NONE = 0;
 		static const unsigned PREPARE_PREFETCH_TYPE = 1;
@@ -1674,6 +1674,12 @@ namespace Firebird
 
 		template <typename StatusType> unsigned getTimeout(StatusType* status)
 		{
+			if (cloopVTable->version < 4)
+			{
+				StatusType::setVersionError(status, "IStatement", cloopVTable->version, 4);
+				StatusType::checkException(status);
+				return 0;
+			}
 			StatusType::clearException(status);
 			unsigned ret = static_cast<VTable*>(this->cloopVTable)->getTimeout(this, status);
 			StatusType::checkException(status);
@@ -1682,6 +1688,12 @@ namespace Firebird
 
 		template <typename StatusType> void setTimeout(StatusType* status, unsigned timeOut)
 		{
+			if (cloopVTable->version < 4)
+			{
+				StatusType::setVersionError(status, "IStatement", cloopVTable->version, 4);
+				StatusType::checkException(status);
+				return;
+			}
 			StatusType::clearException(status);
 			static_cast<VTable*>(this->cloopVTable)->setTimeout(this, status, timeOut);
 			StatusType::checkException(status);
@@ -1896,7 +1908,7 @@ namespace Firebird
 		}
 
 	public:
-		static const unsigned VERSION = 3;
+		static const unsigned VERSION = 4;
 
 		template <typename StatusType> void getInfo(StatusType* status, unsigned itemsLength, const unsigned char* items, unsigned bufferLength, unsigned char* buffer)
 		{
@@ -2036,6 +2048,12 @@ namespace Firebird
 
 		template <typename StatusType> unsigned getIdleTimeout(StatusType* status)
 		{
+			if (cloopVTable->version < 4)
+			{
+				StatusType::setVersionError(status, "IAttachment", cloopVTable->version, 4);
+				StatusType::checkException(status);
+				return 0;
+			}
 			StatusType::clearException(status);
 			unsigned ret = static_cast<VTable*>(this->cloopVTable)->getIdleTimeout(this, status);
 			StatusType::checkException(status);
@@ -2044,6 +2062,12 @@ namespace Firebird
 
 		template <typename StatusType> void setIdleTimeout(StatusType* status, unsigned timeOut)
 		{
+			if (cloopVTable->version < 4)
+			{
+				StatusType::setVersionError(status, "IAttachment", cloopVTable->version, 4);
+				StatusType::checkException(status);
+				return;
+			}
 			StatusType::clearException(status);
 			static_cast<VTable*>(this->cloopVTable)->setIdleTimeout(this, status, timeOut);
 			StatusType::checkException(status);
@@ -2051,6 +2075,12 @@ namespace Firebird
 
 		template <typename StatusType> unsigned getStatementTimeout(StatusType* status)
 		{
+			if (cloopVTable->version < 4)
+			{
+				StatusType::setVersionError(status, "IAttachment", cloopVTable->version, 4);
+				StatusType::checkException(status);
+				return 0;
+			}
 			StatusType::clearException(status);
 			unsigned ret = static_cast<VTable*>(this->cloopVTable)->getStatementTimeout(this, status);
 			StatusType::checkException(status);
@@ -2059,6 +2089,12 @@ namespace Firebird
 
 		template <typename StatusType> void setStatementTimeout(StatusType* status, unsigned timeOut)
 		{
+			if (cloopVTable->version < 4)
+			{
+				StatusType::setVersionError(status, "IAttachment", cloopVTable->version, 4);
+				StatusType::checkException(status);
+				return;
+			}
 			StatusType::clearException(status);
 			static_cast<VTable*>(this->cloopVTable)->setStatementTimeout(this, status, timeOut);
 			StatusType::checkException(status);

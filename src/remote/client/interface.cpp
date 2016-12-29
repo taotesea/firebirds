@@ -1795,7 +1795,7 @@ void Attachment::setIdleTimeout(CheckStatusWrapper* status, unsigned int timeOut
 	string stmt;
 	stmt.printf("SET SESSION IDLE TIMEOUT %lu", timeOut);
 
-	execute(status, NULL, stmt.length(), stmt.c_str(), 1, NULL, NULL, NULL, NULL);
+	execute(status, NULL, stmt.length(), stmt.c_str(), SQL_DIALECT_CURRENT, NULL, NULL, NULL, NULL);
 }
 
 
@@ -1810,7 +1810,7 @@ void Attachment::setStatementTimeout(CheckStatusWrapper* status, unsigned int ti
 	string stmt;
 	stmt.printf("SET STATEMENT TIMEOUT %lu", timeOut);
 
-	execute(status, NULL, stmt.length(), stmt.c_str(), 1, NULL, NULL, NULL, NULL);
+	execute(status, NULL, stmt.length(), stmt.c_str(), SQL_DIALECT_CURRENT, NULL, NULL, NULL, NULL);
 }
 
 

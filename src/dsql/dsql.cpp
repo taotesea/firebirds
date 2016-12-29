@@ -913,18 +913,18 @@ void DsqlTransactionRequest::dsqlPass(thread_db* tdbb, DsqlCompilerScratch* scra
 
 // Execute a dynamic SQL statement.
 void DsqlTransactionRequest::execute(thread_db* tdbb, jrd_tra** traHandle,
-	Firebird::IMessageMetadata* inMetadata, const UCHAR* inMsg,
-	Firebird::IMessageMetadata* outMetadata, UCHAR* outMsg,
-	bool singleton)
+	IMessageMetadata* /*inMetadata*/, const UCHAR* /*inMsg*/,
+	IMessageMetadata* /*outMetadata*/, UCHAR* /*outMsg*/,
+	bool /*singleton*/)
 {
 	node->execute(tdbb, this, traHandle);
 }
 
 
-void SetSessionRequest::execute(thread_db* tdbb, jrd_tra** traHandle,
-	Firebird::IMessageMetadata* inMetadata, const UCHAR* inMsg,
-	Firebird::IMessageMetadata* outMetadata, UCHAR* outMsg,
-	bool singleton)
+void SetSessionRequest::execute(thread_db* tdbb, jrd_tra** /*traHandle*/,
+	IMessageMetadata* /*inMetadata*/, const UCHAR* /*inMsg*/,
+	IMessageMetadata* /*outMetadata*/, UCHAR* /*outMsg*/,
+	bool /*singleton*/)
 {
 	node->execute(tdbb, this);
 }
