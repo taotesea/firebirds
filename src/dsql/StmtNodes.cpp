@@ -6778,15 +6778,13 @@ void StoreNode::makeDefaults(thread_db* tdbb, CompilerScratch* csb)
 	if (!vector)
 		return;
 
-	//StreamType localMap[JrdStatement::MAP_LENGTH];
-	AutoPtr<StreamType, ArrayDelete<StreamType> > localMap;
+	StreamMap localMap;
 	StreamType* map = csb->csb_rpt[stream].csb_map;
 
 	if (!map)
 	{
-		localMap = FB_NEW_POOL(*tdbb->getDefaultPool()) StreamType[STREAM_MAP_LENGTH];
-		map = localMap;
-		fb_assert(stream <= MAX_STREAMS); // CVC: MAX_UCHAR relevant, too?
+		map = localMap.getBuffer(STREAM_MAP_LENGTH);
+		fb_assert(stream <= MAX_STREAMS);
 		map[0] = stream;
 		map[1] = 1;
 		map[2] = 2;
@@ -8266,7 +8264,8 @@ static void dsqlExplodeFields(dsql_rel* relation, Array<NestConst<T> >& fields)
 	for (dsql_fld* field = relation->rel_fields; field; field = field->fld_next)
 	{
 		// CVC: Ann Harrison requested to skip COMPUTED fields in INSERT w/o field list.
-		if (field->flags & FLD_computed)
+		// ASF: But not for views - CORE-5454
+		if (!(relation->rel_flags & REL_view) && (field->flags & FLD_computed))
 			continue;
 
 		FieldNode* fieldNode = FB_NEW_POOL(pool) FieldNode(pool);
@@ -9039,14 +9038,13 @@ static void makeValidation(thread_db* tdbb, CompilerScratch* csb, StreamType str
 	if (!vector)
 		return;
 
-	//StreamType local_map[JrdStatement::MAP_LENGTH];
-	AutoPtr<StreamType, ArrayDelete<StreamType> > localMap;
+	StreamMap localMap;
 	StreamType* map = csb->csb_rpt[stream].csb_map;
+
 	if (!map)
 	{
-		localMap = FB_NEW_POOL(*tdbb->getDefaultPool()) StreamType[STREAM_MAP_LENGTH];
-		map = localMap;
-		fb_assert(stream <= MAX_STREAMS); // CVC: MAX_UCHAR still relevant for the bitmap?
+		map = localMap.getBuffer(STREAM_MAP_LENGTH);
+		fb_assert(stream <= MAX_STREAMS);
 		map[0] = stream;
 	}
 

@@ -106,7 +106,6 @@ static void expunge(thread_db*, record_param*, const jrd_tra*, ULONG);
 static bool dfw_should_know(record_param* org_rpb, record_param* new_rpb,
 	USHORT irrelevant_field, bool void_update_is_relevant = false);
 static void garbage_collect(thread_db*, record_param*, ULONG, RecordStack&);
-static THREAD_ENTRY_DECLARE garbage_collector(THREAD_ENTRY_PARAM);
 
 
 #ifdef VIO_DEBUG
@@ -1302,7 +1301,10 @@ void VIO_data(thread_db* tdbb, record_param* rpb, MemoryPool* pool)
 	UCHAR* tail;
 	const UCHAR* tail_end;
 	UCHAR differences[MAX_DIFFERENCES];
-	Record* prior = rpb->rpb_prior;
+
+	// Primary record version not uses prior version
+	Record* prior = (rpb->rpb_flags & rpb_chained) ? rpb->rpb_prior : NULL;
+
 	if (prior)
 	{
 		tail = differences;
@@ -1919,7 +1921,7 @@ void VIO_fini(thread_db* tdbb)
 	{
 		dbb->dbb_flags &= ~DBB_garbage_collector;
 		dbb->dbb_gc_sem.release(); // Wake up running thread
-		dbb->dbb_gc_fini.enter();
+		dbb->dbb_gc_fini.waitForCompletion();
 	}
 }
 
@@ -2381,7 +2383,7 @@ void VIO_init(thread_db* tdbb)
 			{
 				try
 				{
-					Thread::start(garbage_collector, dbb, THREAD_medium);
+					dbb->dbb_gc_fini.run(dbb);
 				}
 				catch (const Exception&)
 				{
@@ -3900,10 +3902,13 @@ static void check_owner(thread_db* tdbb,
 		return;
 
 	const Jrd::Attachment* const attachment = tdbb->getAttachment();
-	const Firebird::MetaName name(attachment->att_user->getUserName());
-	desc2.makeText((USHORT) name.length(), CS_METADATA, (UCHAR*) name.c_str());
-	if (!MOV_compare(&desc1, &desc2))
-		return;
+	if (attachment->att_user)
+	{
+		const Firebird::MetaName name(attachment->att_user->getUserName());
+		desc2.makeText((USHORT) name.length(), CS_METADATA, (UCHAR*) name.c_str());
+		if (!MOV_compare(&desc1, &desc2))
+			return;
+	}
 
 	ERR_post(Arg::Gds(isc_protect_ownership));
 }
@@ -3925,7 +3930,8 @@ static bool check_user(thread_db* tdbb, const dsc* desc)
 
 	const TEXT* p = (TEXT *) desc->dsc_address;
 	const TEXT* const end = p + desc->dsc_length;
-	const TEXT* q = tdbb->getAttachment()->att_user->getUserName().c_str();
+	const UserId* user = tdbb->getAttachment()->att_user;
+	const TEXT* q = user ? user->getUserName().c_str() : "";
 
 	// It is OK to not internationalize this function for v4.00 as
 	// User names are limited to 7-bit ASCII for v4.00
@@ -4300,7 +4306,7 @@ void VIO_garbage_collect_idx(thread_db* tdbb, jrd_tra* transaction,
 	clearRecordStack(staying);
 }
 
-static THREAD_ENTRY_DECLARE garbage_collector(THREAD_ENTRY_PARAM arg)
+void Database::garbage_collector(Database* dbb)
 {
 /**************************************
  *
@@ -4317,7 +4323,6 @@ static THREAD_ENTRY_DECLARE garbage_collector(THREAD_ENTRY_PARAM arg)
  *
  **************************************/
 	FbLocalStatus status_vector;
-	Database* const dbb = (Database*) arg;
 
 	try
 	{
@@ -4548,8 +4553,7 @@ static THREAD_ENTRY_DECLARE garbage_collector(THREAD_ENTRY_PARAM arg)
 	}	// try
 	catch (const Firebird::Exception& ex)
 	{
-		ex.stuffException(&status_vector);
-		iscDbLogStatus(dbb->dbb_filename.c_str(), &status_vector);
+		dbb->exceptionHandler(ex, NULL);
 	}
 
 	dbb->dbb_flags &= ~(DBB_garbage_collector | DBB_gc_active | DBB_gc_pending);
@@ -4562,15 +4566,20 @@ static THREAD_ENTRY_DECLARE garbage_collector(THREAD_ENTRY_PARAM arg)
 			dbb->dbb_flags &= ~DBB_gc_starting;
 			dbb->dbb_gc_init.release();
 		}
-		dbb->dbb_gc_fini.release();
 	}
 	catch (const Firebird::Exception& ex)
 	{
-		ex.stuffException(&status_vector);
-		iscDbLogStatus(dbb->dbb_filename.c_str(), &status_vector);
+		dbb->exceptionHandler(ex, NULL);
 	}
+}
 
-	return 0;
+
+void Database::exceptionHandler(const Firebird::Exception& ex,
+	ThreadFinishSync<Database*>::ThreadRoutine* /*routine*/)
+{
+	FbLocalStatus status_vector;
+	ex.stuffException(&status_vector);
+	iscDbLogStatus(dbb_filename.c_str(), &status_vector);
 }
 
 
@@ -5699,12 +5708,15 @@ static void set_owner_name(thread_db* tdbb, Record* record, USHORT field_id)
 
 	if (!EVL_field(0, record, field_id, &desc1))
 	{
-		const Jrd::Attachment* const attachment = tdbb->getAttachment();
-		const Firebird::MetaName name(attachment->att_user->getUserName());
-		dsc desc2;
-		desc2.makeText((USHORT) name.length(), CS_METADATA, (UCHAR*) name.c_str());
-		MOV_move(tdbb, &desc2, &desc1);
-		record->clearNull(field_id);
+		const Jrd::UserId* const user = tdbb->getAttachment()->att_user;
+		if (user)
+		{
+			const Firebird::MetaName name(user->getUserName());
+			dsc desc2;
+			desc2.makeText((USHORT) name.length(), CS_METADATA, (UCHAR*) name.c_str());
+			MOV_move(tdbb, &desc2, &desc1);
+			record->clearNull(field_id);
+		}
 	}
 }
 

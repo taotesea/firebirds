@@ -329,12 +329,25 @@ public:
 			dataFlag = true;
 			downFlag = false;
 		}
-		catch (const Exception&)
+		catch (const Exception& ex)
 		{
 			if (curs)
 				curs->release();
 			if (tra)
 				tra->release();
+
+			// If database is shutdown it's not a reason to fail mapping
+			StaticStatusVector status;
+			ex.stuffException(status);
+
+			const ISC_STATUS* s = status.begin();
+
+			if (fb_utils::containsErrorCode(s, isc_shutdown))
+			{
+				downFlag = true;
+				return;
+			}
+
 			throw;
 		}
 	}
@@ -584,7 +597,8 @@ class MappingIpc FB_FINAL : public Firebird::IpcObject
 
 public:
 	explicit MappingIpc(MemoryPool&)
-		: processId(getpid())
+		: processId(getpid()),
+		  cleanupSync(*getDefaultMemoryPool(), clearDelivery, THREAD_high)
 	{ }
 
 	~MappingIpc()
@@ -607,7 +621,7 @@ public:
 			(void)  // Ignore errors in cleanup
 				sharedMemory->eventPost(&sMem->process[process].notifyEvent);
 
-			cleanupSemaphore.tryEnter(5);
+			cleanupSync.waitForCompletion();
 
 			// Ignore errors in cleanup
 			sharedMemory->eventFini(&sMem->process[process].notifyEvent);
@@ -763,13 +777,19 @@ public:
 
 		try
 		{
-			Thread::start(clearDelivery, this, THREAD_high);
+			cleanupSync.run(this);
 		}
 		catch (const Exception&)
 		{
 			sMem->process[process].flags &= ~MappingHeader::FLAG_ACTIVE;
 			throw;
 		}
+	}
+
+	void exceptionHandler(const Exception& ex, ThreadFinishSync<MappingIpc*>::ThreadRoutine*)
+	{
+		iscLogException("Fatal error in clearDeliveryThread", ex);
+		fb_utils::logAndDie("Fatal error in clearDeliveryThread");
 	}
 
 private:
@@ -809,13 +829,10 @@ private:
 			}
 			if (startup)
 				startupSemaphore.release();
-
-			cleanupSemaphore.release();
 		}
 		catch (const Exception& ex)
 		{
-			iscLogException("Fatal error in clearDeliveryThread", ex);
-			fb_utils::logAndDie("Fatal error in clearDeliveryThread");
+			exceptionHandler(ex, NULL);
 		}
 	}
 
@@ -870,11 +887,9 @@ private:
 		MappingIpc* const data;
 	};
 
-	static THREAD_ENTRY_DECLARE clearDelivery(THREAD_ENTRY_PARAM par)
+	static void clearDelivery(MappingIpc* mapping)
 	{
-		MappingIpc* m = (MappingIpc*)par;
-		m->clearDeliveryThread();
-		return 0;
+		mapping->clearDeliveryThread();
 	}
 
 	AutoPtr<SharedMemory<MappingHeader> > sharedMemory;
@@ -882,7 +897,7 @@ private:
 	const SLONG processId;
 	unsigned process;
 	Semaphore startupSemaphore;
-	Semaphore cleanupSemaphore;
+	ThreadFinishSync<MappingIpc*> cleanupSync;
 };
 
 GlobalPtr<MappingIpc, InstanceControl::PRIORITY_DELETE_FIRST> mappingIpc;
@@ -903,7 +918,10 @@ public:
 		: AutoPtr(att)
 	{
 		if (att)
+		{
+			MAP_DEBUG(fprintf(stderr, "Using existing db handle %p\n", att));
 			att->addRef();
+		}
 	}
 
 	bool attach(FbLocalStatus& st, const char* aliasDb, ICryptKeyCallback* cryptCb)
@@ -911,7 +929,10 @@ public:
 		bool down = false;		// true if on attach db is shutdown
 
 		if (hasData())
+		{
+			MAP_DEBUG(fprintf(stderr, "Already attached %s\n", aliasDb));
 			return down;
+		}
 
 		DispatcherPtr prov;
 		if (cryptCb)
@@ -1337,7 +1358,13 @@ ULONG mapUser(const bool throwNotFoundError,
 				}
 
 				if (cDb)
+				{
+					MAP_DEBUG(fprintf(stderr, "Populate cache for main DB %p\n", iDb.get()));
 					cDb->populate(iDb, dbDown);
+				}
+
+				MAP_DEBUG(fprintf(stderr, "Populate cache for sec DB %p\n", iSec.get()));
+
 				cSec->populate(iSec, secDown);
 
 				sSec.downgrade(SYNC_SHARED);

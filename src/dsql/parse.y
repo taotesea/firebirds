@@ -591,6 +591,7 @@ using namespace Firebird;
 
 // tokens added for Firebird 4.0
 
+%token <metaNamePtr> BINARY
 %token <metaNamePtr> CUME_DIST
 %token <metaNamePtr> DEFINER
 %token <metaNamePtr> EXCLUDE
@@ -611,6 +612,7 @@ using namespace Firebird;
 %token <metaNamePtr> SYSTEM
 %token <metaNamePtr> TIES
 %token <metaNamePtr> UNBOUNDED
+%token <metaNamePtr> VARBINARY
 %token <metaNamePtr> WINDOW
 %token <metaNamePtr> IDLE
 %token <metaNamePtr> SESSION
@@ -899,7 +901,7 @@ grant0($node)
 	***/
 	| ddl_privileges(NOTRIAL(&$node->privileges)) object
 			TO non_role_grantee_list(NOTRIAL(&$node->users)) grant_option granted_by
-		{ 
+		{
 			$node->object = $2;
 			$node->grantAdminOption = $5;
 			$node->grantor = $6;
@@ -933,11 +935,11 @@ object
 		{ $$ = newNode<GranteeClause>(obj_functions, get_object_name(obj_functions)); }
 	| PACKAGE
 		{ $$ = newNode<GranteeClause>(obj_packages, get_object_name(obj_packages)); }
-	| GENERATOR 
+	| GENERATOR
 		{ $$ = newNode<GranteeClause>(obj_generators, get_object_name(obj_generators)); }
-	| SEQUENCE 
+	| SEQUENCE
 		{ $$ = newNode<GranteeClause>(obj_generators, get_object_name(obj_generators)); }
-	| DOMAIN 
+	| DOMAIN
 		{ $$ = newNode<GranteeClause>(obj_domains, get_object_name(obj_domains)); }
 	| EXCEPTION
 		{ $$ = newNode<GranteeClause>(obj_exceptions, get_object_name(obj_exceptions)); }
@@ -950,7 +952,7 @@ object
 	| FILTER
 		{ $$ = newNode<GranteeClause>(obj_filters, get_object_name(obj_filters)); }
 	;
-	
+
 table_noise
 	: // nothing
 	| TABLE
@@ -1720,7 +1722,7 @@ replace_sequence_clause
 			$$ = $2;
 		}
 	;
-	
+
 %type replace_sequence_options(<createAlterSequenceNode>)
 replace_sequence_options($seqNode)
 	: /* nothing */
@@ -2153,7 +2155,7 @@ column_def($relationNode)
 					newNode<RelationNode::AddColumnClause>();
 				clause->field = $2;
 				clause->field->fld_name = *$1;
-				clause->identity = $3;
+				clause->identityOptions = $3;
 				$relationNode->clauses.add(clause);
 			}
 		column_constraint_clause(NOTRIAL($<addColumnClause>4)) collate_clause
@@ -2204,7 +2206,7 @@ identity_clause_options($identityOptions)
 %type identity_clause_option(<identityOptions>)
 identity_clause_option($identityOptions)
 	: START WITH sequence_value
-		{ setClause($identityOptions->start, "START WITH", $3); }
+		{ setClause($identityOptions->startValue, "START WITH", $3); }
 	| INCREMENT by_noise signed_long_integer
 		{ setClause($identityOptions->increment, "INCREMENT BY", $3); }
 	;
@@ -3931,23 +3933,16 @@ alter_op($relationNode)
 			clause->dropDefault = true;
 			$relationNode->clauses.add(clause);
 		}
-	| col_opt symbol_column_name RESTART with_opt
-		{
-			RelationNode::AlterColTypeClause* clause = newNode<RelationNode::AlterColTypeClause>();
-			clause->field = newNode<dsql_fld>();
-			clause->field->fld_name = *$2;
-			clause->identityRestart = true;
-			clause->identityRestartValue = $4;
-			$relationNode->clauses.add(clause);
-		}
-	| col_opt symbol_column_name SET INCREMENT by_noise signed_long_integer
-		{
-			RelationNode::AlterColTypeClause* clause = newNode<RelationNode::AlterColTypeClause>();
-			clause->field = newNode<dsql_fld>();
-			clause->field->fld_name = *$2;
-			clause->identityIncrement = $6;
-			$relationNode->clauses.add(clause);
-		}
+	| col_opt symbol_column_name
+			{ $<identityOptions>$ = newNode<RelationNode::IdentityOptions>(); }
+		alter_identity_clause_options($<identityOptions>3)
+			{
+				RelationNode::AlterColTypeClause* clause = newNode<RelationNode::AlterColTypeClause>();
+				clause->field = newNode<dsql_fld>();
+				clause->field->fld_name = *$2;
+				clause->identityOptions = $<identityOptions>3;
+				$relationNode->clauses.add(clause);
+			}
 	| col_opt symbol_column_name DROP IDENTITY
 		{
 			RelationNode::AlterColTypeClause* clause = newNode<RelationNode::AlterColTypeClause>();
@@ -4084,6 +4079,23 @@ alter_data_type_or_domain
 			$$ = newNode<dsql_fld>();
 			$$->typeOfName = *$1;
 		}
+	;
+
+%type alter_identity_clause_options(<identityOptions>)
+alter_identity_clause_options($identityOptions)
+	: alter_identity_clause_options alter_identity_clause_option($identityOptions)
+	| alter_identity_clause_option($identityOptions)
+	;
+
+%type alter_identity_clause_option(<identityOptions>)
+alter_identity_clause_option($identityOptions)
+	: RESTART with_opt
+		{
+			setClause($identityOptions->restart, "RESTART");
+			$identityOptions->startValue = $2;
+		}
+	| SET INCREMENT by_noise signed_long_integer
+		{ setClause($identityOptions->increment, "SET INCREMENT BY", $4); }
 	;
 
 %type <boolVal> drop_behaviour
@@ -4423,6 +4435,7 @@ simple_type
 %type <legacyField> non_charset_simple_type
 non_charset_simple_type
 	: national_character_type
+	| binary_character_type
 	| numeric_type
 	| float_type
 	| BIGINT
@@ -4608,6 +4621,40 @@ national_character_type
 		}
 	;
 
+%type <legacyField> binary_character_type
+binary_character_type
+	: binary_character_keyword '(' pos_short_integer ')'
+		{
+			$$ = newNode<dsql_fld>();
+			$$->dtype = dtype_text;
+			$$->charLength = (USHORT) $3;
+			$$->length = (USHORT) $3;
+			$$->textType = ttype_binary;
+			$$->charSetId = CS_BINARY;
+			$$->subType = fb_text_subtype_binary;
+		}
+	| binary_character_keyword
+		{
+			$$ = newNode<dsql_fld>();
+			$$->dtype = dtype_text;
+			$$->charLength = 1;
+			$$->length = 1;
+			$$->textType = ttype_binary;
+			$$->charSetId = CS_BINARY;
+			$$->subType = fb_text_subtype_binary;
+		}
+	| varbinary_character_keyword '(' pos_short_integer ')'
+		{
+			$$ = newNode<dsql_fld>();
+			$$->dtype = dtype_varying;
+			$$->charLength = (USHORT) $3;
+			$$->length = (USHORT) $3 + sizeof(USHORT);
+			$$->textType = ttype_binary;
+			$$->charSetId = CS_BINARY;
+			$$->subType = fb_text_subtype_binary;
+		}
+	;
+
 %type <legacyField> character_type
 character_type
 	: character_keyword '(' pos_short_integer ')'
@@ -4647,6 +4694,14 @@ national_character_keyword
 	| NATIONAL CHAR
 	;
 
+binary_character_keyword
+	: BINARY
+	;
+
+varbinary_character_keyword
+	: VARBINARY
+	| BINARY VARYING
+	;
 
 // numeric type
 
@@ -7811,6 +7866,7 @@ symbol_blob_subtype_name
 %type <metaNamePtr> symbol_character_set_name
 symbol_character_set_name
 	: valid_symbol_name
+	| BINARY
 	;
 
 %type <metaNamePtr> symbol_collation_name

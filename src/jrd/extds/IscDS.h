@@ -483,6 +483,9 @@ public:
 											isc_db_handle*,
 											USHORT);
 
+	virtual ISC_STATUS ISC_EXPORT fb_database_crypt_callback(Jrd::FbStatusVector*,
+											void*);
+
 	virtual ISC_STATUS API_ROUTINE fb_dsql_set_timeout(Jrd::FbStatusVector*,
 										isc_stmt_handle*,
 										ULONG);
