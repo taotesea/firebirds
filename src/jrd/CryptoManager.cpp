@@ -1357,7 +1357,7 @@ namespace Jrd {
 					goto found;
 			}
 
-			att->signalShutdown();
+			att->signalShutdown(0 /* no special shutdown code */);
 found:;
 		}
 
@@ -1365,7 +1365,7 @@ found:;
 		for (unsigned i = 0; i < knownHolders.getCount(); ++i)
 		{
 			if (!validateHoldersGroup(knownHolders[i], keyName))
-				knownHolders[i].first->signalShutdown();
+				knownHolders[i].first->signalShutdown(0);
 		}
 	}
 

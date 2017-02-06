@@ -680,22 +680,22 @@ namespace
 						// with the flag set cause shutdownMutex mutex is not locked here.
 						// That's not a danger cause check of att_use_count
 						// in shutdown code makes it anyway safe.
-					Arg::Gds err(isc_att_shutdown);
-					if (sAtt->getShutError())
-						err << Arg::Gds(sAtt->getShutError());
+						Arg::Gds err(isc_att_shutdown);
+						if (sAtt->getShutError())
+							err << Arg::Gds(sAtt->getShutError());
 
-					err.raise();
+						err.raise();
 					}
 
 					tdbb->setAttachment(attachment);
 					tdbb->setDatabase(attachment->att_database);
 
 					if (!async)
-				{
+					{
 						attachment->att_use_count++;
-					attachment->setupIdleTimer(true);
+						attachment->setupIdleTimer(true);
+					}
 				}
-			}
 				catch (const Firebird::Exception&)
 				{
 					if (!nolock)
