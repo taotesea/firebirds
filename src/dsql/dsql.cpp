@@ -1642,18 +1642,24 @@ void dsql_req::setupTimer(thread_db* tdbb)
 
 	ISC_STATUS toutErr = isc_cfg_stmt_timeout;
 	unsigned int timeOut = dbb->dbb_config->getStatementTimeout() * 1000;
-	const unsigned int attTout = att->getStatementTimeout();
 
-	if (!timeOut || attTout && attTout < timeOut)
+	if (req_timeout)
 	{
-		timeOut = attTout;
-		toutErr = isc_att_stmt_timeout;
+		if (!timeOut || req_timeout < timeOut)
+		{
+			timeOut = req_timeout;
+			toutErr = isc_req_stmt_timeout;
+		}
 	}
-
-	if (!timeOut || req_timeout && req_timeout < timeOut)
+	else
 	{
-		timeOut = req_timeout;
-		toutErr = isc_req_stmt_timeout;
+		const unsigned int attTout = att->getStatementTimeout();
+
+		if (!timeOut || attTout && attTout < timeOut)
+		{
+			timeOut = attTout;
+			toutErr = isc_att_stmt_timeout;
+		}
 	}
 
 	if (!req_timer && timeOut)
