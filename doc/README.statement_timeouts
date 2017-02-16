@@ -5,6 +5,7 @@ Author:
 
 
 Description:
+
   The feature allows to set timeout for SQL statement, i.e. it allows to automatically 
 stop execution of SQL statement when it running longer than given timeout value. 
 
@@ -93,16 +94,25 @@ interface Statement
   - fb_info_statement_timeout_att
 
 - get statement execution timeout at statement level is possible using isc_dsql_info() 
-API with new info tags:
+  API with new info tags:
   - isc_info_sql_stmt_timeout_user		timeout value of given statement
   - isc_info_sql_stmt_timeout_run		actual timeout value of given statement 
-										evaluated considering values set at config, 
-										connection and statement levels, see "effective 
-										value of timeout" above
-  
-If remote server doesn't support statement timeouts:
+		evaluated considering values set at config, connection and statement levels, see
+		"effective value of timeout" above. Valid only when timeout timer is running, i.e. 
+		for currently executed statements.
+
+Remote client implementation notes:
+  - Attachment::setStatementTimeout() issued "SET STATEMENT TIMEOUT" SQL statement
+  - Attachment::getStatementTimeout() calls isc_database_info() with 
+    fb_info_statement_timeout_att tag 
+  - Statement::setTimeout() save timeout value given and pass it with op_execute
+    and op_execute2 packets
+  - Statement::getTimeout() returns saved timeout value
+  - fb_dsql_set_timeout() is a wrapper over Statement::setTimeout()
+
+If remote server doesn't support statement timeouts (protocol version less than 15):
   - "set" functions will return isc_wish_list error
-  - "get" functions will return zero (without error) 
+  - "get" functions will return zero and set isc_wish_list error 
   - "info" functions will return isc_info_error tag in info buffer (as usual).
 
 
@@ -112,9 +122,10 @@ If remote server doesn't support statement timeouts:
 
 	SET STATEMENT TIMEOUT <value> [HOUR | MINUTE | SECOND | MILLISECOND]
 
-if timepart is not set, default is SECOND
+if timepart is not set, default is SECOND.
+This statement could run outside of transaction control and immediately effective.
 
-- New context variables
+- Context variables
 
   Context 'SYSTEM' have new variable: 'STATEMENT_TIMEOUT'. It contains current value of 
 statement execution timeout that was set at connection level, or zero, if timeout was 
@@ -123,7 +134,7 @@ not set.
 - Monitoring tables
   
   MON$ATTACHMENTS
-    MON$STATEMENT_TIMEOUT			Connection level statement timeout:
+    MON$STATEMENT_TIMEOUT			Connection level statement timeout
 
   MON$STATEMENTS
     MON$STATEMENT_TIMEOUT			Statement level statement timeout

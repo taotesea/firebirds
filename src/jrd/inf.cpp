@@ -778,7 +778,7 @@ void INF_database_info(thread_db* tdbb,
 			break;
 
 		case fb_info_ses_idle_timeout_db:
-			length = INF_convert(dbb->dbb_config->getConnIdleTimeout(), buffer);
+			length = INF_convert(dbb->dbb_config->getConnIdleTimeout() * 60, buffer);
 			break;
 
 		case fb_info_ses_idle_timeout_att:

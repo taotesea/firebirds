@@ -556,6 +556,7 @@ public:
 	Statement* createStatement(CheckStatusWrapper* status, unsigned dialect);
 
 private:
+	void execWithCheck(CheckStatusWrapper* status, const string& stmt);
 	void freeClientData(CheckStatusWrapper* status, bool force = false);
 	SLONG getSingleInfo(CheckStatusWrapper* status, UCHAR infoItem);
 
@@ -1785,9 +1786,44 @@ SLONG Attachment::getSingleInfo(CheckStatusWrapper* status, UCHAR infoItem)
 }
 
 
+void Attachment::execWithCheck(CheckStatusWrapper* status, const string& stmt)
+{
+/**************************************
+ *
+ *	Used to execute "SET xxx TIMEOUT" statements. Checks for protocol version
+ *  and convert expected SQL error into isc_wish_list error. The only possible
+ *  case is when modern network server works with legacy engine.
+ *
+ **************************************/
+	if (rdb->rdb_port->port_protocol >= PROTOCOL_VERSION15)
+	{
+		execute(status, NULL, stmt.length(), stmt.c_str(), SQL_DIALECT_CURRENT, NULL, NULL, NULL, NULL);
+
+		// handle isc_dsql_token_unk_err 
+		if (status->getState() & IStatus::STATE_ERRORS)
+		{
+			const ISC_STATUS* errs = status->getErrors();
+
+			if (!fb_utils::containsErrorCode(errs, isc_sqlerr) ||
+				!fb_utils::containsErrorCode(errs, isc_dsql_token_unk_err))
+			{
+				return;
+			}
+
+			status->init();
+		}
+	}
+	status->setErrors(Arg::Gds(isc_wish_list).value());
+}
+
+
 unsigned int Attachment::getIdleTimeout(CheckStatusWrapper* status)
 {
-	return getSingleInfo(status, fb_info_ses_idle_timeout_att);
+	if (rdb->rdb_port->port_protocol >= PROTOCOL_VERSION15)
+		return getSingleInfo(status, fb_info_ses_idle_timeout_att);
+
+	status->setErrors(Arg::Gds(isc_wish_list).value());
+	return 0;
 }
 
 
@@ -1796,13 +1832,17 @@ void Attachment::setIdleTimeout(CheckStatusWrapper* status, unsigned int timeOut
 	string stmt;
 	stmt.printf("SET SESSION IDLE TIMEOUT %lu", timeOut);
 
-	execute(status, NULL, stmt.length(), stmt.c_str(), SQL_DIALECT_CURRENT, NULL, NULL, NULL, NULL);
+	execWithCheck(status, stmt);
 }
 
 
 unsigned int Attachment::getStatementTimeout(CheckStatusWrapper* status)
 {
-	return getSingleInfo(status, fb_info_statement_timeout_att);
+	if (rdb->rdb_port->port_protocol >= PROTOCOL_VERSION15)
+		return getSingleInfo(status, fb_info_statement_timeout_att);
+
+	status->setErrors(Arg::Gds(isc_wish_list).value());
+	return 0;
 }
 
 
@@ -1811,7 +1851,7 @@ void Attachment::setStatementTimeout(CheckStatusWrapper* status, unsigned int ti
 	string stmt;
 	stmt.printf("SET STATEMENT TIMEOUT %lu", timeOut);
 
-	execute(status, NULL, stmt.length(), stmt.c_str(), SQL_DIALECT_CURRENT, NULL, NULL, NULL, NULL);
+	execWithCheck(status, stmt);
 }
 
 
