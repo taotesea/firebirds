@@ -87,7 +87,7 @@ If remote server doesn't support idle connection timeouts (protocol version less
 
   Support in SQL
 
-- New SQL statement allows to set set statement execution timeout at connection level:
+- New SQL statement allows to set idle connection timeout at connection level:
 
 	SET SESSION IDLE TIMEOUT <value> [HOUR | MINUTE | SECOND]
 
