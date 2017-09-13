@@ -180,7 +180,7 @@ namespace
 				*tdbb->getDefaultPool());
 
 			DmlNode* relationNode = PAR_parse_node(tdbb, csb);
-			if (relationNode->kind != DmlNode::KIND_REC_SOURCE)
+			if (relationNode->getKind() != DmlNode::KIND_REC_SOURCE)
 				PAR_syntax_error(csb, "TABLE");
 
 			RelationSourceNode* relationSource = static_cast<RelationSourceNode*>(relationNode);
@@ -1532,7 +1532,7 @@ BoolExprNode* PAR_parse_boolean(thread_db* tdbb, CompilerScratch* csb)
 {
 	DmlNode* node = PAR_parse_node(tdbb, csb);
 
-	if (node->kind != DmlNode::KIND_BOOLEAN)
+	if (node->getKind() != DmlNode::KIND_BOOLEAN)
 		PAR_syntax_error(csb, "boolean");
 
 	return static_cast<BoolExprNode*>(node);
@@ -1543,7 +1543,7 @@ ValueExprNode* PAR_parse_value(thread_db* tdbb, CompilerScratch* csb)
 {
 	DmlNode* node = PAR_parse_node(tdbb, csb);
 
-	if (node->kind != DmlNode::KIND_VALUE)
+	if (node->getKind() != DmlNode::KIND_VALUE)
 		PAR_syntax_error(csb, "value");
 
 	return static_cast<ValueExprNode*>(node);
@@ -1554,7 +1554,7 @@ StmtNode* PAR_parse_stmt(thread_db* tdbb, CompilerScratch* csb)
 {
 	DmlNode* node = PAR_parse_node(tdbb, csb);
 
-	if (node->kind != DmlNode::KIND_STATEMENT)
+	if (node->getKind() != DmlNode::KIND_STATEMENT)
 		PAR_syntax_error(csb, "statement");
 
 	return static_cast<StmtNode*>(node);
@@ -1611,7 +1611,7 @@ DmlNode* PAR_parse_node(thread_db* tdbb, CompilerScratch* csb)
 	DmlNode* node = blr_parsers[blr_operator](tdbb, *tdbb->getDefaultPool(), csb, blr_operator);
 	FB_SIZE_T pos = 0;
 
-	if (node->kind == DmlNode::KIND_STATEMENT && csb->csb_dbg_info->blrToSrc.find(blr_offset, pos))
+	if (node->getKind() == DmlNode::KIND_STATEMENT && csb->csb_dbg_info->blrToSrc.find(blr_offset, pos))
 	{
 		MapBlrToSrcItem& i = csb->csb_dbg_info->blrToSrc[pos];
 		StmtNode* stmt = static_cast<StmtNode*>(node);

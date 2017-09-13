@@ -1411,7 +1411,7 @@ void PASS1_expand_select_node(DsqlCompilerScratch* dsqlScratch, ExprNode* node, 
 	}
 	else
 	{
-		fb_assert(node->kind == DmlNode::KIND_VALUE);
+		fb_assert(node->getKind() == DmlNode::KIND_VALUE);
 		list->add(static_cast<ValueExprNode*>(node));
 	}
 }
