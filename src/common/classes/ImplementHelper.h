@@ -389,6 +389,17 @@ inline void check(IStatus* status)
 }
 
 
+// Generic status checker
+inline void checkExcept(IStatus* status, ISC_STATUS exclude)
+{
+	if (status->getState() & IStatus::STATE_ERRORS)
+	{
+		if (status->getErrors()[1] != exclude)
+			status_exception::raise(status);
+	}
+}
+
+
 // debugger for reference counters
 
 #ifdef NEVERDEF
