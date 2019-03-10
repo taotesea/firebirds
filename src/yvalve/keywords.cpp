@@ -275,6 +275,7 @@ static const TOK tokens[] =
 	{TOK_LINGER, "LINGER", true},
 	{TOK_LIST, "LIST", true},
 	{TOK_LN, "LN", true},
+	{TOK_LATERAL, "LATERAL", false},
 	{TOK_LOCAL, "LOCAL", true},
 	{TOK_LOCALTIME, "LOCALTIME", true},
 	{TOK_LOCALTIMESTAMP, "LOCALTIMESTAMP", true},

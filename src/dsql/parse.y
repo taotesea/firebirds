@@ -613,6 +613,7 @@ using namespace Firebird;
 %token <metaNamePtr> INVOKER
 %token <metaNamePtr> IV
 %token <metaNamePtr> LAST_DAY
+%token <metaNamePtr> LATERAL
 %token <metaNamePtr> LEGACY
 %token <metaNamePtr> LOCAL
 %token <metaNamePtr> LOCALTIME
@@ -4202,6 +4203,7 @@ keyword_or_column
 	| VAR_SAMP
 	| VAR_POP
 	| DECFLOAT				// added in FB 4.0
+	| LATERAL
 	| LOCAL
 	| LOCALTIME
 	| LOCALTIMESTAMP
@@ -5813,6 +5815,7 @@ table_reference
 table_primary
 	: table_proc
 	| derived_table			{ $$ = $1; }
+	| lateral_derived_table	{ $$ = $1; }
 	| '(' joined_table ')'	{ $$ = $2; }
 	;
 
@@ -5825,6 +5828,15 @@ derived_table
 			if ($5)
 				$$->alias = $5->c_str();
 			$$->columns = $6;
+		}
+	;
+
+%type <selectExprNode> lateral_derived_table
+lateral_derived_table
+	: LATERAL derived_table
+		{
+			$$ = $2;
+			$$->dsqlFlags |= RecordSourceNode::DFLAG_LATERAL;
 		}
 	;
 
