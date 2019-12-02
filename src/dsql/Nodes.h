@@ -200,10 +200,7 @@ public:
 		if (dsqlScratch)
 			dsqlScratch->setTransaction(transaction);
 
-		const ULONG flag = checkPermission(tdbb, transaction) ? TDBB_trusted_ddl : 0;
-
-		Firebird::AutoSetRestoreFlag<ULONG> trustedDdlFlag(&tdbb->tdbb_flags, flag, true);
-
+		checkPermission(tdbb, transaction);
 		execute(tdbb, dsqlScratch, transaction);
 	}
 
